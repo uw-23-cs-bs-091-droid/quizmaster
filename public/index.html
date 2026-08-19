@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Quiz Website</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px 20px;
+            background: #f4f6f8;
+        }
+
+        .quiz-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .quiz-button {
+            width: 100%;
+            padding: 18px;
+            margin: 12px 0;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .quiz-button:hover {
+            background: #1d4ed8;
+        }
+
+        .question {
+            margin: 25px 0;
+            padding: 20px;
+            background: #f0f2f5;
+            border-radius: 8px;
+        }
+
+        .question h3 {
+            margin-top: 0;
+        }
+
+        .option {
+            display: block;
+            margin: 12px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .option:hover {
+            background: #e8eefc;
+        }
+
+        .option input {
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 7px;
+        }
+
+        #submitBtn {
+            background: #16a34a;
+            color: white;
+            margin-top: 10px;
+        }
+
+        #submitBtn:hover {
+            background: #15803d;
+        }
+
+        #backBtn {
+            background: #6b7280;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        #result {
+            margin-top: 25px;
+            padding: 20px;
+            background: #ecfdf5;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #loading {
+            text-align: center;
+            color: #666;
+        }
+
+        #error {
+            color: red;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="quiz-box">
+
+    <!-- QUIZ SELECTION SCREEN -->
+    <div id="quizSelection">
+
+        <h1>📝 Quiz Website</h1>
+
+        <p id="subtitle">
+            Choose a quiz to begin
+        </p>
+
+        <div id="quizList">
+            <p id="loading">Loading quizzes...</p>
+        </div>
+
+        <p id="error"></p>
+
+    </div>
+
+
+    <!-- QUIZ SCREEN -->
+    <div id="quizScreen" class="hidden">
+
+        <button id="backBtn">
+            ← Back to Quizzes
+        </button>
+
+        <h1 id="quizTitle"></h1>
+
+        <div id="questions"></div>
+
+        <button id="submitBtn">
+            Submit Quiz
+        </button>
+
+        <div id="result" class="hidden"></div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+let selectedQuizId = null;
+let questions = [];
+
+
+// ==========================================
+// LOAD ALL QUIZZES
+// ==========================================
+
+async function loadQuizzes() {
+
+    try {
+
+        const response = await fetch("/api/quizzes");
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to load quizzes");
+        }
+
+        const quizList = document.getElementById("quizList");
+
+        quizList.innerHTML = "";
+
+        data.quizzes.forEach(quiz => {
+
+            const button = document.createElement("button");
+
+            button.className = "quiz-button";
+
+            button.textContent = quiz.title;
+
+            button.addEventListener("click", () => {
+                loadQuiz(quiz.id);
+            });
+
+            quizList.appendChild(button);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById("loading").style.display = "none";
+
+        document.getElementById("error").textContent =
+            "Error loading quizzes: " + error.message;
+
+    }
+
+}
+
+
+// ==========================================
+// LOAD SELECTED QUIZ
+// ==========================================
+
+async function loadQuiz(quizId) {
+
+    try {
+
+        const response =
+            await fetch("/api/quiz?id=" + quizId);
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to load quiz");
+        }
+
+        selectedQuizId = data.quiz.id;
+
+        questions = data.questions;
+
+
+        // Hide selection screen
+        document.getElementById("quizSelection")
+            .classList.add("hidden");
+
+
+        // Show quiz screen
+        document.getElementById("quizScreen")
+            .classList.remove("hidden");
+
+
+        // Set title
+        document.getElementById("quizTitle")
+            .textContent = data.quiz.title;
+
+
+        // Clear previous result
+        document.getElementById("result")
+            .classList.add("hidden");
+
+
+        renderQuestions();
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert("Error loading quiz: " + error.message);
+
+    }
+
+}
+
+
+// ==========================================
+// DISPLAY QUESTIONS
+// ==========================================
+
+function renderQuestions() {
+
+    const questionsContainer =
+        document.getElementById("questions");
+
+    questionsContainer.innerHTML = "";
+
+
+    questions.forEach((question, index) => {
+
+        const div = document.createElement("div");
+
+        div.className = "question";
+
+
+        const heading =
+            document.createElement("h3");
+
+        heading.textContent =
+            (index + 1) + ". " + question.question;
+
+
+        div.appendChild(heading);
+
+
+        const options =
+            JSON.parse(question.options);
+
+
+        options.forEach(option => {
+
+            const label =
+                document.createElement("label");
+
+            label.className = "option";
+
+
+            const input =
+                document.createElement("input");
+
+            input.type = "radio";
+
+            input.name =
+                "question-" + question.id;
+
+            input.value = option;
+
+
+            label.appendChild(input);
+
+            label.appendChild(
+                document.createTextNode(option)
+            );
+
+
+            div.appendChild(label);
+
+        });
+
+
+        questionsContainer.appendChild(div);
+
+    });
+
+}
+
+
+// ==========================================
+// SUBMIT QUIZ
+// ==========================================
+
+document
+    .getElementById("submitBtn")
+    .addEventListener("click", async () => {
+
+        const answers = {};
+
+
+        questions.forEach(question => {
+
+            const selected =
+                document.querySelector(
+                    `input[name="question-${question.id}"]:checked`
+                );
+
+
+            if (selected) {
+
+                answers[question.id] =
+                    selected.value;
+
+            }
+
+        });
+
+
+        // Make sure every question is answered
+
+        if (
+            Object.keys(answers).length !==
+            questions.length
+        ) {
+
+            alert("Please answer all questions.");
+
+            return;
+
+        }
+
+
+        try {
+
+            const response =
+                await fetch("/responses", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        quiz_id:
+                            selectedQuizId,
+
+                        answers:
+                            answers
+
+                    })
+
+                });
+
+
+            const result =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    result.error ||
+                    "Failed to submit quiz"
+                );
+
+            }
+
+
+            const resultBox =
+                document.getElementById("result");
+
+
+            resultBox.innerHTML = `
+                🎉 Quiz Completed!<br><br>
+                Score: ${result.score} / ${result.total}<br>
+                Percentage: ${result.percentage}%
+            `;
+
+
+            resultBox.classList.remove("hidden");
+
+
+            // Scroll to result
+
+            resultBox.scrollIntoView({
+                behavior: "smooth"
+            });
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                "Error submitting quiz: " +
+                error.message
+            );
+
+        }
+
+    });
+
+
+// ==========================================
+// BACK TO QUIZ LIST
+// ==========================================
+
+document
+    .getElementById("backBtn")
+    .addEventListener("click", () => {
+
+        document
+            .getElementById("quizScreen")
+            .classList.add("hidden");
+
+
+        document
+            .getElementById("quizSelection")
+            .classList.remove("hidden");
+
+
+        document
+            .getElementById("result")
+            .classList.add("hidden");
+
+
+        selectedQuizId = null;
+
+        questions = [];
+
+    });
+
+
+// ==========================================
+// START WEBSITE
+// ==========================================
+
+loadQuizzes();
+
+</script>
+
+</body>
+</html>
+
