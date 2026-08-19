@@ -38,13 +38,13 @@ QuizMaster uses Cloudflare D1, a serverless SQL database based on SQLite, to sto
 
 
 quizmaster/
-├── public/
-├── src/
-├── test/
-├── computer.sql
-├── javascript.sql
-├── questions.sql
-├── data.sql
-├── schema.sql
-├── package.json
-└── wrangler.jsonc
+├──> public/
+├──> src/
+├──>test/
+├──>computer.sql
+├──>javascript.sql
+├──>questions.sql
+├──>data.sql
+├──>schema.sql
+├──>package.json
+└──>wrangler.jsonc
